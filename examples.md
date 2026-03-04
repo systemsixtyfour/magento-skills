@@ -1,14 +1,14 @@
 # Magento RequireJS Mixin Examples
 
-Ejemplos prácticos de mixins en Magento 2 basados en casos reales.
+Practical Magento 2 mixin examples based on real-world use cases.
 
 ---
 
 ## Example 1: Extending a UIComponent
 
-**Scenario**: Capturar coordenadas de Google Maps en el checkout
+**Scenario**: Capture Google Maps coordinates in checkout
 
-**Original Component**: `SummaTheme_Zonification/js/view/checkout/address-autocomplete.js`
+**Original Component**: `Vendor_Theme/js/view/checkout/address-autocomplete.js`
 ```javascript
 define([
     'ko',
@@ -70,7 +70,7 @@ define([
 var config = {
     config: {
         mixins: {
-            'SummaTheme_Zonification/js/view/checkout/address-autocomplete': {
+            'Vendor_Theme/js/view/checkout/address-autocomplete': {
                 'Vendor_Module/js/mixin/address-autocomplete-mixin': true
             }
         }
@@ -82,7 +82,7 @@ var config = {
 
 ## Example 2: Wrapping a Simple Function
 
-**Scenario**: Agregar validación extra antes de realizar una acción
+**Scenario**: Add extra validation before performing an action
 
 **Original Function**: `Magento_Checkout/js/action/place-order.js`
 ```javascript
@@ -149,7 +149,7 @@ var config = {
 
 ## Example 3: Extending Payload Extender
 
-**Scenario**: Agregar datos personalizados al payload del shipping
+**Scenario**: Add custom data to shipping payload
 
 **Original**: `Magento_Checkout/js/model/shipping-save-processor/payload-extender.js`
 ```javascript
@@ -212,7 +212,7 @@ var config = {
 
 ## Example 4: Extending Observable in UIComponent
 
-**Scenario**: Agregar computed observable a un componente
+**Scenario**: Add computed observable to a component
 
 **Mixin**:
 ```javascript
@@ -259,7 +259,7 @@ define([
 
 ## Example 5: Multiple Method Override
 
-**Scenario**: Override múltiples métodos en un componente
+**Scenario**: Override multiple methods in a component
 
 **Mixin**:
 ```javascript
@@ -318,7 +318,7 @@ define([
 
 ## Example 6: Conditional Logic in Mixin
 
-**Scenario**: Aplicar lógica solo bajo ciertas condiciones
+**Scenario**: Apply logic only under certain conditions
 
 **Mixin**:
 ```javascript
@@ -361,7 +361,7 @@ define([
 
 ## Example 7: Working with KnockoutJS Observables
 
-**Scenario**: Suscribirse a cambios en observables
+**Scenario**: Subscribe to changes in observables
 
 **Mixin**:
 ```javascript
@@ -403,11 +403,11 @@ define([
 
 ## Example 8: Storage Module Pattern
 
-**Scenario**: Persistir datos entre componentes cuando los observables de Magento son difíciles de manejar
+**Scenario**: Persist data between components when Magento observables are difficult to manage
 
-**Problema**: El `shippingAddress` observable se puede resetear o modificar por otros componentes, perdiendo datos personalizados.
+**Problem**: The `shippingAddress` observable can be reset or modified by other components, losing custom data.
 
-**Solución**: Crear un módulo de storage independiente.
+**Solution**: Create an independent storage module.
 
 ### Storage Module: `app/code/Vendor/Module/view/frontend/web/js/model/data-storage.js`
 
@@ -472,7 +472,7 @@ define([
 });
 ```
 
-### Mixin que guarda en storage: `capture-mixin.js`
+### Mixin that saves to storage: `capture-mixin.js`
 
 ```javascript
 define([
@@ -498,7 +498,7 @@ define([
 });
 ```
 
-### Mixin que lee del storage: `payload-mixin.js`
+### Mixin that reads from storage: `payload-mixin.js`
 
 ```javascript
 define([
@@ -529,27 +529,27 @@ define([
 });
 ```
 
-### Ventajas del Storage Pattern:
+### Storage Pattern Advantages:
 
-1. **Persistencia garantizada**: Los datos no se pierden si otros componentes modifican el observable
-2. **Desacoplamiento**: Los componentes no necesitan conocer la estructura completa del observable
-3. **Simplicidad**: Evita la complejidad de sincronización con observables de Magento
-4. **Singleton**: Una única fuente de verdad para los datos
-5. **Fácil de debuggear**: Console logs simples para verificar estado
+1. **Guaranteed persistence**: Data is not lost if other components modify the observable
+2. **Decoupling**: Components don't need to know the complete observable structure
+3. **Simplicity**: Avoids the complexity of synchronizing with Magento observables
+4. **Singleton**: A single source of truth for data
+5. **Easy to debug**: Simple console logs to verify state
 
-### Cuándo usar Storage Pattern:
+### When to use Storage Pattern:
 
-- ✅ Cuando necesitas persistir datos entre múltiples pasos del checkout
-- ✅ Cuando el observable principal (`quote`, `shippingAddress`, etc.) se resetea frecuentemente
-- ✅ Cuando múltiples componentes necesitan acceder a los mismos datos
-- ✅ Cuando la estructura del observable es compleja (customAttributes como array, etc.)
-- ✅ Cuando necesitas datos disponibles en cualquier momento del flujo
+- ✅ When you need to persist data between multiple checkout steps
+- ✅ When the main observable (`quote`, `shippingAddress`, etc.) is frequently reset
+- ✅ When multiple components need to access the same data
+- ✅ When the observable structure is complex (customAttributes as array, etc.)
+- ✅ When you need data available at any point in the flow
 
-### Cuándo NO usar Storage Pattern:
+### When NOT to use Storage Pattern:
 
-- ❌ Para datos que ya tienen un lugar lógico en el modelo de Magento
-- ❌ Para datos que solo se usan en un componente
-- ❌ Cuando el observable funciona correctamente sin problemas
+- ❌ For data that already has a logical place in Magento's model
+- ❌ For data only used in one component
+- ❌ When the observable works correctly without issues
 
 ---
 

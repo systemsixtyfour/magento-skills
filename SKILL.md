@@ -1,30 +1,30 @@
 # Magento RequireJS & Mixin Developer
 
-**Experto en desarrollo de mixins JavaScript y extensiones RequireJS para Magento 2.** Domina los patrones correctos para extender componentes UI, funciones simples, objetos y módulos JavaScript siguiendo las mejores prácticas del core de Magento.
+**Expert in JavaScript mixin development and RequireJS extensions for Magento 2.** Masters the correct patterns for extending UI components, simple functions, objects, and JavaScript modules following Magento core best practices.
 
 ## Expertise
 
-- **RequireJS Configuration**: Configuración de mixins, maps, shim y paths
-- **UIComponent Extension**: Extensión de componentes UI usando `.extend()` y `this._super()`
-- **Function Wrapping**: Uso correcto de `wrapper.wrap()` para funciones simples
-- **Payload Extenders**: Extensión de payloads en checkout y otras áreas
-- **JavaScript Architecture**: Patrones de diseño y arquitectura de Magento 2 frontend
-- **Debugging**: Identificación y resolución de problemas comunes en mixins
+- **RequireJS Configuration**: Configuration of mixins, maps, shim, and paths
+- **UIComponent Extension**: Extending UI components using `.extend()` and `this._super()`
+- **Function Wrapping**: Correct use of `wrapper.wrap()` for simple functions
+- **Payload Extenders**: Extending payloads in checkout and other areas
+- **JavaScript Architecture**: Design patterns and Magento 2 frontend architecture
+- **Debugging**: Identifying and resolving common mixin issues
 
 ## When to Use This Skill
 
 Invoke this skill when:
-- Necesitas extender o modificar comportamiento JavaScript existente en Magento
-- Debes crear mixins para componentes UI de Magento
-- Requieres interceptar funciones JavaScript sin modificar el código original
-- Necesitas agregar funcionalidad al checkout (payload extenders, validators, etc.)
-- Tienes problemas con mixins que no se ejecutan o no funcionan correctamente
-- Debes seguir las mejores prácticas del core de Magento para JavaScript
+- You need to extend or modify existing JavaScript behavior in Magento
+- You must create mixins for Magento UI components
+- You need to intercept JavaScript functions without modifying the original code
+- You need to add functionality to checkout (payload extenders, validators, etc.)
+- You have problems with mixins that don't execute or work correctly
+- You must follow Magento core best practices for JavaScript
 
 ## Key Patterns
 
 ### 1. UIComponent Extension (`.extend()`)
-Para componentes que heredan de `uiComponent`:
+For components that inherit from `uiComponent`:
 ```javascript
 define([
     'Magento_Checkout/js/model/quote'
@@ -46,7 +46,7 @@ define([
 ```
 
 ### 2. Function Wrapping (`wrapper.wrap()`)
-Para funciones simples que retornan una función:
+For simple functions that return a function:
 ```javascript
 define([
     'mage/utils/wrapper'
@@ -71,7 +71,7 @@ define([
 ```
 
 ### 3. Object Extension
-Para módulos que retornan objetos `{}`:
+For modules that return objects `{}`:
 ```javascript
 define([], function () {
     'use strict';
@@ -91,7 +91,7 @@ define([], function () {
 ```
 
 ### 4. Storage Module Pattern
-Para persistir datos entre componentes cuando los observables son complejos:
+For persisting data between components when observables are complex:
 ```javascript
 define([
     'ko'
@@ -188,7 +188,7 @@ return function (Component) {
 };
 ```
 
-### ❌ Wrong: Not returning all arguments in beforePlugin
+### ❌ Wrong: Not Returning All Arguments in beforePlugin
 ```javascript
 // DON'T forget to return all arguments
 public function beforeValidateForCart(
@@ -200,7 +200,7 @@ public function beforeValidateForCart(
 }
 ```
 
-### ✅ Correct: Return all arguments
+### ✅ Correct: Return All Arguments
 ```javascript
 // DO return all method arguments
 public function beforeValidateForCart(
@@ -244,7 +244,7 @@ var config = {
 };
 ```
 
-### Map (Override entire module)
+### Map (Override Entire Module)
 ```javascript
 var config = {
     map: {
