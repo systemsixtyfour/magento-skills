@@ -1,3 +1,8 @@
+---
+name: magento-requirejs-developer
+description: Expert in JavaScript mixin development and RequireJS extensions for Magento 2. Use when extending UI components, creating mixins, wrapping JavaScript functions, or modifying frontend behavior without changing core files. Masters UIComponent extension patterns, wrapper.wrap() for functions, payload extenders, and knockout observables.
+---
+
 # Magento RequireJS & Mixin Developer
 
 **Expert in JavaScript mixin development and RequireJS extensions for Magento 2.** Masters the correct patterns for extending UI components, simple functions, objects, and JavaScript modules following Magento core best practices.
