@@ -113,21 +113,54 @@ First inventory the real rotation scheme, which varies per platform:
 ls -la ~/var/log/
 ```
 
+Read that listing for two things. **The rotation suffix scheme** — `.1`, `-20260909`, or
+something else. And **which compression is actually in use**: this runbook assumes `gzip`
+(`.gz`), but logrotate is also configured with `bzip2`, `xz` or `zstd` depending on the
+distro. If the extensions are `.bz2`, `.xz` or `.zst`, adapt **both halves** of every
+command below: substitute `bzgrep` / `xzgrep` / `zstdgrep` for `zgrep`, **and** change the
+`-name '*.gz'` filter to that extension (and the `! -name '*.gz'` exclusion with it, or the
+archives get scanned as if they were plain text). Same principle as the rest of this step:
+inventory the real scheme instead of assuming one.
+
 Then **list** which of the live and uncompressed rotated logs match. `-l` prints only the
 files that have a hit; `-a` keeps grep from bailing out on a file it decides is binary:
 
 ```sh
-grep -a -l '<?php' ~/var/log/*.log ~/var/log/*.log.* 2>/dev/null
+find ~/var/log -type f ! -name '*.gz' -exec grep -a -l '<?php' {} +
 ```
 
 And the ones already compressed:
 
 ```sh
-zgrep -l '<?php' ~/var/log/*.gz 2>/dev/null
+find ~/var/log -type f -name '*.gz' -exec zgrep -l '<?php' {} +
 ```
 
-Expected output: **one line per matching file, and nothing else**. **No output means
-clean** — there is nothing to treat in that category.
+Expected output: **one line per matching file, and nothing else** — `find` prints the full
+path, not just the basename like a glob does. **No output means clean**: there is nothing to
+treat in that category.
+
+**Use `find`, not a glob, and this is not a style preference.** The glob this runbook used
+to carry was `~/var/log/*.log ~/var/log/*.log.*`, and `*.log.*` requires a **literal dot**
+after `log`. Logrotate's `dateext` format uses a **hyphen**: `exception.log-20260909`. That
+file was **never scanned**. Verified empirically against three rotated files carrying a real
+payload: the old glob found **one** of the three; the `find` form found all three.
+
+Three reasons to keep it as `find`:
+
+- **It does not depend on having enumerated the rotation schemes correctly.** Widening the
+  glob to `*.log-*` still bets that the suffix list is complete, and that bet already lost
+  once.
+- **It does not violate this runbook's style restriction.** `find ... -exec ... +` is **one
+  flat command**: no loops, no variables, no state carried between commands, nothing to
+  upload. The restriction is that scripts cannot be uploaded or executed on the node, and
+  this is not a script.
+- **A glob with no matches fails in some shells** (zsh among them, which is what these nodes
+  run). `find` returns nothing and exits cleanly.
+
+This interacts badly with `-l`, which is why it stayed hidden: with `-c` the operator saw
+every scanned file enumerated and could cross-check it against the `ls` above. With `-l`,
+**absence means clean**, so a file that was never scanned is indistinguishable from a file
+that came back clean.
 
 **Use `-l` on a glob, never `-c`.** With a glob, `-c` prints a line for **every** file
 including the ones at `0`. Rotation depth on a real node reaches 130+ files, so `-c` returns
@@ -171,7 +204,7 @@ as "done". It is not the same claim.
 Complementary sweep to run before declaring the archives clean:
 
 ```sh
-zgrep -l -E 'shell_exec|X_TRACE|eval\(' ~/var/log/*.gz 2>/dev/null
+find ~/var/log -type f -name '*.gz' -exec zgrep -l -E 'shell_exec|X_TRACE|eval\(' {} +
 ```
 
 If the specific incident had an identified base64 blob, sweep for **its prefix** as well:
@@ -367,11 +400,13 @@ truncating: do not wait for it here.
 ### Step 14 (operator action) - Verify no log still matches
 
 ```sh
-grep -a -l '<?php' ~/var/log/*.log ~/var/log/*.log.* 2>/dev/null
+find ~/var/log -type f ! -name '*.gz' -exec grep -a -l '<?php' {} +
 ```
 
 Expected output: **no output at all — that means every treated file is clean**, live and
-rotated-uncompressed alike. For a verification `-l` is clearer than `-c`: an empty result is
+rotated-uncompressed alike. `find` is what makes that claim trustworthy: it scans every file
+in the directory regardless of rotation suffix, so "no output" covers the
+`exception.log-YYYYMMDD` forms a glob would silently skip. For a verification `-l` is clearer than `-c`: an empty result is
 the answer, with no need to read 130 zeros to conclude the same thing.
 
 If a file **is** listed, run `-c` on that one file to see how many lines. A **live** log that
@@ -438,10 +473,10 @@ bytes are still there — investigate before moving on.
 First, **which** archives carry it:
 
 ```sh
-zgrep -l '<?php' ~/var/log/*.gz 2>/dev/null
+find ~/var/log -type f -name '*.gz' -exec zgrep -l '<?php' {} +
 ```
 
-Expected output: **one line per matching archive, nothing else.** No output means no
+Expected output: **one line per matching archive** (full path), **nothing else.** No output means no
 compressed archive carries the literal payload, and this step is done.
 
 Then the counts, **only on the archives that `-l` just listed** — here the numbers matter,
@@ -554,11 +589,11 @@ While the source stays open: **re-run the step 14 command every day**, and recor
 for anything it lists.
 
 ```sh
-grep -a -l '<?php' ~/var/log/*.log ~/var/log/*.log.* 2>/dev/null
+find ~/var/log -type f ! -name '*.gz' -exec grep -a -l '<?php' {} +
 ```
 
 If it lists nothing, the day's record is "clean". If it lists a file, count that one file to
-record the rate:
+record the rate — using the path `find` printed:
 
 ```sh
 grep -a -c '<?php' ~/var/log/exception.log

@@ -88,7 +88,7 @@ order** where the order actually matters.
 | 0 | Determine exposure | Know whether APSB26-146 is installed, and since when | Version + patch level + patch install date written down (or "not installed") | [ ] |
 | 1 | Hunt the database | Find the payload persisted in address rows | Q5 returns a count for the three tables and it is recorded, together with the oldest row found | [ ] |
 | 2 | Close the write source | Stop the payload from being written into the logs at all | The daily `<?php` count stops rising without any truncate | [ ] |
-| 3 | Purge the poisoned logs | Remove the already-written payload from `var/log`, rotated files included | `grep -a -l` returns no output for live and uncompressed-rotated logs, and every compressed archive is inventoried with its destination resolved | [ ] |
+| 3 | Purge the poisoned logs | Remove the already-written payload from `var/log`, rotated files included | the `find ... -exec grep -a -l` scan returns no output for live and uncompressed-rotated logs, and every compressed archive is inventoried with its destination resolved | [ ] |
 | 4 | Root-cause patch | Stop the filter from signing attacker input as trusted | The correct variant applies, the wrong one fails `--check`, and the patched file contains `deferToParent` | [ ] |
 
 ### Order lesson (observed, not theoretical)
@@ -172,8 +172,8 @@ buys the time to do 2b properly; 2b is what actually closes the step, because 2a
 cover the body vector.
 
 **How to know the whole step is done.** The daily `<?php` count
-(`grep -a -l '<?php' ~/var/log/*.log ~/var/log/*.log.*`, then `-c` on whatever it lists)
-stays flat over several days
+(`find ~/var/log -type f ! -name '*.gz' -exec grep -a -l '<?php' {} +`, then `-c` on
+whatever it lists) stays flat over several days
 **without any truncate** — with **each day's output pasted by the operator** and recorded.
 That series of pasted counts is the only evidence that the write actually stopped; a single
 flat day is not, and neither is a day nobody looked at.
@@ -276,9 +276,15 @@ target files by glob, forensic copy compressed with `gzip`, in-place truncate wi
 `truncate -s 0`, and verification. The agent reads the output back, it does not run the
 steps.
 
-**Discovery has to cover rotated files.** `*.log` alone misses `exception.log.1`,
-`exception.log-YYYYMMDD` and `exception.log.2.gz`, and truncating the live file does not
-touch them. The runbook classifies the findings into three categories because the treatment
+**Discovery has to cover rotated files, and it has to use `find`.** `*.log` alone misses
+`exception.log.1`, `exception.log-YYYYMMDD` and `exception.log.2.gz`, and truncating the live
+file does not touch them. Widening the glob is not enough either: `*.log.*` requires a
+literal dot, so logrotate's `dateext` names (`exception.log-YYYYMMDD`) are skipped —
+empirically, the glob form found one of three payload-carrying rotated files and the `find`
+form found all three. Combined with `-l`, where absence means clean, an unscanned file is
+indistinguishable from a clean one. The runbook uses
+`find ~/var/log -type f ! -name '*.gz' -exec grep -a -l '<?php' {} +` and its `.gz`
+counterpart for that reason. The runbook classifies the findings into three categories because the treatment
 differs: the **live log** is truncated in place (that preserves Monolog's open descriptor);
 a **rotated, uncompressed** file is `gzip`-ed, which keeps the evidence and removes the
 literal `<?php` bytes in one move, with no descriptor to worry about; a **rotated, already
@@ -303,8 +309,8 @@ getting them off the node**, which makes the transfer a recommended follow-up ra
 optional one.
 
 **How to know it is done.** Three conditions, not one, **each backed by output the
-operator pasted**: `grep -a -l '<?php'` returns **no output** for the **live** logs and for
-the **uncompressed rotated** ones — on a glob, an empty result is the clean signal, not a
+operator pasted**: the `find ... -exec grep -a -l '<?php' {} +` scan returns **no output**
+for the **live** logs and for the **uncompressed rotated** ones — on a glob, an empty result is the clean signal, not a
 column of zeros — and every **compressed** archive is inventoried with its destination
 resolved. Plus the recorded sizes dropped against the step 11 baseline and the
 forensic directory listing shows one `.gz` per treated file with `MD5SUMS`. A file that was
@@ -534,6 +540,14 @@ produced a wrong conclusion.
   field, where the operator had to ask for the output to be filtered. `-l` to **discover**
   (no output means clean), `-c` to **measure** what was already discovered, one named file at
   a time. On a single file `-c` is correct and is the point.
+- **Scan with `find`, never with a log glob.** `*.log.*` requires a literal dot after `log`,
+  so logrotate's `dateext` names (`exception.log-YYYYMMDD`) are never scanned. Verified: the
+  glob form found one of three payload-carrying rotated files; `find ~/var/log -type f ...
+  -exec grep -a -l ... {} +` found all three. Widening the glob still bets that the suffix
+  list is complete, and that bet already lost once. `find ... -exec ... +` is a single flat
+  command — no loops, no variables — so it does not break the "no scripts on the node"
+  constraint, and it does not fail on a no-match glob the way zsh does. Check the compression
+  extension too: `bzgrep` / `xzgrep` / `zstdgrep` if the archives are not `.gz`.
 - **Do not compare monitoring counts against on-disk counts.** With N nodes over shared
   storage, monitoring counts every line N times. See the units warning in
   `references/purge-logs.md`.
@@ -545,8 +559,12 @@ The incident is **not closed** until all four of these hold:
 1. **The database hunt returns 0** in the three tables — Q5 and Q6 of
    `references/hunt-db.sql`, with the pattern check of the Q6 warning actually performed.
 2. **The write source is closed and verified**, with a daily count that stays at 0
-   (`grep -a -l '<?php' ~/var/log/*.log ~/var/log/*.log.*` returning **no output**) across
-   several days **without any truncate** in between.
+   (`find ~/var/log -type f ! -name '*.gz' -exec grep -a -l '<?php' {} +` returning **no
+   output**) across several days **without any truncate** in between. **The command must be
+   the `find` form, not a glob** — `*.log.*` requires a literal dot and silently skips
+   logrotate's `dateext` names (`exception.log-YYYYMMDD`), so with a glob this criterion can
+   read as met while poisoned archives sit untouched. A closure criterion evaluated with an
+   incomplete scan is worse than no criterion.
 3. **The root-cause patch is applied and verified** — step 4's "how to know it is done",
    not just "the file was patched at some point".
 4. **Credentials are rotated** if exploitation was confirmed (see the IOC table: the
