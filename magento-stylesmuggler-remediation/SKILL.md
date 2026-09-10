@@ -88,7 +88,7 @@ order** where the order actually matters.
 | 0 | Determine exposure | Know whether APSB26-146 is installed, and since when | Version + patch level + patch install date written down (or "not installed") | [ ] |
 | 1 | Hunt the database | Find the payload persisted in address rows | Q5 returns a count for the three tables and it is recorded, together with the oldest row found | [ ] |
 | 2 | Close the write source | Stop the payload from being written into the logs at all | The daily `<?php` count stops rising without any truncate | [ ] |
-| 3 | Purge the poisoned logs | Remove the already-written payload from `var/log`, rotated files included | 0 in the live log, 0 in the uncompressed rotated files, and every compressed archive inventoried with its destination resolved | [ ] |
+| 3 | Purge the poisoned logs | Remove the already-written payload from `var/log`, rotated files included | `grep -a -l` returns no output for live and uncompressed-rotated logs, and every compressed archive is inventoried with its destination resolved | [ ] |
 | 4 | Root-cause patch | Stop the filter from signing attacker input as trusted | The correct variant applies, the wrong one fails `--check`, and the patched file contains `deferToParent` | [ ] |
 
 ### Order lesson (observed, not theoretical)
@@ -172,7 +172,8 @@ buys the time to do 2b properly; 2b is what actually closes the step, because 2a
 cover the body vector.
 
 **How to know the whole step is done.** The daily `<?php` count
-(`grep -a -c '<?php' ~/var/log/*.log ~/var/log/*.log.*`) stays flat over several days
+(`grep -a -l '<?php' ~/var/log/*.log ~/var/log/*.log.*`, then `-c` on whatever it lists)
+stays flat over several days
 **without any truncate** — with **each day's output pasted by the operator** and recorded.
 That series of pasted counts is the only evidence that the write actually stopped; a single
 flat day is not, and neither is a day nobody looked at.
@@ -302,9 +303,10 @@ getting them off the node**, which makes the transfer a recommended follow-up ra
 optional one.
 
 **How to know it is done.** Three conditions, not one, **each backed by output the
-operator pasted**: `grep -a -c '<?php'` returns 0 for the **live** logs, 0 for the
-**uncompressed rotated** ones, and every **compressed** archive is inventoried with its
-destination resolved. Plus the recorded sizes dropped against the step 11 baseline and the
+operator pasted**: `grep -a -l '<?php'` returns **no output** for the **live** logs and for
+the **uncompressed rotated** ones — on a glob, an empty result is the clean signal, not a
+column of zeros — and every **compressed** archive is inventoried with its destination
+resolved. Plus the recorded sizes dropped against the step 11 baseline and the
 forensic directory listing shows one `.gz` per treated file with `MD5SUMS`. A file that was
 truncated but whose post-truncate check was never pasted back is **not verified**.
 
@@ -526,6 +528,12 @@ produced a wrong conclusion.
 - **A badly written verification pattern returns 0 rows and reads as "it is clean".** That
   is the worst failure mode in a verification, because it confirms exactly what you want to
   read. See the Q6 warning in `references/hunt-db.sql`.
+- **On a glob, `-c` buries the signal in zeros; use `-l`.** `grep -c` / `zgrep -c` over a
+  glob prints a line for every file, including the ones at `0`. Rotation depth on a real node
+  reaches 130+ files, so the real hits scroll off the top of a wall of `:0` — observed in the
+  field, where the operator had to ask for the output to be filtered. `-l` to **discover**
+  (no output means clean), `-c` to **measure** what was already discovered, one named file at
+  a time. On a single file `-c` is correct and is the point.
 - **Do not compare monitoring counts against on-disk counts.** With N nodes over shared
   storage, monitoring counts every line N times. See the units warning in
   `references/purge-logs.md`.
@@ -537,8 +545,8 @@ The incident is **not closed** until all four of these hold:
 1. **The database hunt returns 0** in the three tables — Q5 and Q6 of
    `references/hunt-db.sql`, with the pattern check of the Q6 warning actually performed.
 2. **The write source is closed and verified**, with a daily count that stays at 0
-   (`grep -a -c '<?php' ~/var/log/*.log ~/var/log/*.log.*`) across several days **without any truncate** in
-   between.
+   (`grep -a -l '<?php' ~/var/log/*.log ~/var/log/*.log.*` returning **no output**) across
+   several days **without any truncate** in between.
 3. **The root-cause patch is applied and verified** — step 4's "how to know it is done",
    not just "the file was patched at some point".
 4. **Credentials are rotated** if exploitation was confirmed (see the IOC table: the

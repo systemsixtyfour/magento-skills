@@ -113,22 +113,42 @@ First inventory the real rotation scheme, which varies per platform:
 ls -la ~/var/log/
 ```
 
-Then count in the live logs and the uncompressed rotated ones. `-a` keeps grep from
-bailing out on a file it decides is binary:
+Then **list** which of the live and uncompressed rotated logs match. `-l` prints only the
+files that have a hit; `-a` keeps grep from bailing out on a file it decides is binary:
 
 ```sh
-grep -a -c '<?php' ~/var/log/*.log ~/var/log/*.log.* 2>/dev/null
+grep -a -l '<?php' ~/var/log/*.log ~/var/log/*.log.* 2>/dev/null
 ```
 
-And in the ones already compressed:
+And the ones already compressed:
 
 ```sh
-zgrep -c '<?php' ~/var/log/*.gz 2>/dev/null
+zgrep -l '<?php' ~/var/log/*.gz 2>/dev/null
 ```
 
-Expected output: **one line per file**, with the name and the count. Files with a count
-**greater than 0** are the targets. Files that return **0 are not touched**: truncating
-them destroys useful logs without removing a single poisoned line.
+Expected output: **one line per matching file, and nothing else**. **No output means
+clean** — there is nothing to treat in that category.
+
+**Use `-l` on a glob, never `-c`.** With a glob, `-c` prints a line for **every** file
+including the ones at `0`. Rotation depth on a real node reaches 130+ files, so `-c` returns
+130 lines of `:0` and **buries the signal in zeros** — verified in the field, where the
+operator had to ask for the output to be filtered. `-l` is also better than
+`-c | grep -v ':0$'`: nothing to filter, and no risk of a two-digit count being mistaken for
+the filter. On a **single file**, `-c` is right and is what you want — that is why steps 6,
+15 and 18 use it.
+
+Then, and only on the files `-l` just returned, record the counts. One command per file,
+name written literally:
+
+```sh
+grep -a -c '<?php' ~/var/log/exception.log
+```
+
+Expected output: **one line** with the count. These are the numbers that go in the baseline:
+`-l` says **which**, `-c` says **how many**.
+
+Files that `-l` did not list **are not touched**: truncating them destroys useful logs
+without removing a single poisoned line.
 
 **Classify the result into three categories, because the treatment differs:**
 
@@ -344,16 +364,19 @@ truncating: do not wait for it here.
 
 ### Step 13 (operator action) - (repeat steps 11 and 12 for each additional file)
 
-### Step 14 (operator action) - Verify the `<?php` count is at 0
+### Step 14 (operator action) - Verify no log still matches
 
 ```sh
-grep -a -c '<?php' ~/var/log/*.log ~/var/log/*.log.* 2>/dev/null
+grep -a -l '<?php' ~/var/log/*.log ~/var/log/*.log.* 2>/dev/null
 ```
 
-Expected output: **`0` in the treated files**, live and rotated-uncompressed alike. If a
-live log comes back non-zero, those are lines written **after** the truncate, which means
-the source is still active (see section 5). If a rotated file comes back non-zero, it was
-not treated: go to step 18.
+Expected output: **no output at all — that means every treated file is clean**, live and
+rotated-uncompressed alike. For a verification `-l` is clearer than `-c`: an empty result is
+the answer, with no need to read 130 zeros to conclude the same thing.
+
+If a file **is** listed, run `-c` on that one file to see how many lines. A **live** log that
+is listed means lines were written **after** the truncate, so the source is still active (see
+section 5). A **rotated** file that is listed was never treated: go to step 18.
 
 ### Step 15 (operator action) - Verify the size after truncating
 
@@ -412,12 +435,26 @@ bytes are still there — investigate before moving on.
 
 ### Step 19 (operator action) - Inventory the compressed archives and resolve their destination
 
+First, **which** archives carry it:
+
 ```sh
-zgrep -c '<?php' ~/var/log/*.gz 2>/dev/null
+zgrep -l '<?php' ~/var/log/*.gz 2>/dev/null
 ```
 
-Expected output: **one line per `.gz`** with its count. These carry the payload inside the
-deflate stream. Per the step 4 caveat, that is mitigation and not immunity, so each of
+Expected output: **one line per matching archive, nothing else.** No output means no
+compressed archive carries the literal payload, and this step is done.
+
+Then the counts, **only on the archives that `-l` just listed** — here the numbers matter,
+because they are the record of the residual risk. One command per archive, name written
+literally:
+
+```sh
+zgrep -c '<?php' ~/var/log/exception.log.2.gz
+```
+
+Expected output: **one line** with the count. This is the two-step flow that worked in the
+field: `-l` returned 4 archives out of a directory of 130+, and only those 4 were counted.
+These archives carry the payload inside the deflate stream. Per the step 4 caveat, that is mitigation and not immunity, so each of
 these files needs a **resolved destination**: either transferred off the node (the
 recommended follow-up below), or **explicitly accepted as residual risk** and written down
 as such. Leaving them unlisted is the one option that is not acceptable — an
@@ -513,11 +550,20 @@ Also note the CDN rule **does not cover the body vector**: the payload also trav
 of the GraphQL POST, and CDNs do not practically inspect bodies. The rule closes the header
 vector, not the body one.
 
-While the source stays open: **re-run the step 14 command every day** and record the count:
+While the source stays open: **re-run the step 14 command every day**, and record the count
+for anything it lists.
 
 ```sh
-grep -a -c '<?php' ~/var/log/*.log ~/var/log/*.log.* 2>/dev/null
+grep -a -l '<?php' ~/var/log/*.log ~/var/log/*.log.* 2>/dev/null
 ```
 
-It is the indicator of whether the write is still active and at what rate. When it returns
-0 for several days in a row **without having truncated**, the source is effectively closed.
+If it lists nothing, the day's record is "clean". If it lists a file, count that one file to
+record the rate:
+
+```sh
+grep -a -c '<?php' ~/var/log/exception.log
+```
+
+That series is the indicator of whether the write is still active and at what rate. When
+`-l` returns **no output** for several days in a row **without having truncated**, the source
+is effectively closed.
