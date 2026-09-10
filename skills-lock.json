@@ -5,6 +5,12 @@
       "source": "systemsixtyfour/magento-skills",
       "sourceType": "github",
       "computedHash": "683500dfeadc4a7aeb8c180f9aed583d849948aeb0ba8d718a9122102024986d"
+    },
+    "magento-stylesmuggler-remediation": {
+      "source": "systemsixtyfour/magento-skills",
+      "sourceType": "github",
+      "skillPath": "magento-stylesmuggler-remediation/SKILL.md",
+      "computedHash": "f6f21048c08101ec70421f0dfe68d61b34f0caa74f85643f88977f23453b1c8a"
     }
   }
 }
