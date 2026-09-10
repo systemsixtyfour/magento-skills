@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "magento-requirejs-developer": {
+      "source": "systemsixtyfour/magento-skills",
+      "sourceType": "github",
+      "computedHash": "683500dfeadc4a7aeb8c180f9aed583d849948aeb0ba8d718a9122102024986d"
+    }
+  }
+}
